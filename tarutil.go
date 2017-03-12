@@ -1,4 +1,4 @@
-package tarutils
+package tarutil
 
 import (
 	"archive/tar"
