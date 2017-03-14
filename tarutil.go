@@ -309,7 +309,7 @@ func UnpackTar(r io.Reader, dest string) error {
 func OpenAndUnpack(layerPath, dest string) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
-		return fmt.Errorf("failed to open the layer: %v", err)
+		return ErrFailedOpen
 	}
 	defer tarFile.Close()
 
