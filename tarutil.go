@@ -271,7 +271,7 @@ func changeDirTimes(dirs []*tar.Header, dest string) error {
 	return nil
 }
 
-func unpackTar(r io.Reader, dest string) error {
+func UnpackTar(r io.Reader, dest string) error {
 	tr := tar.NewReader(r)
 	unpackedPaths := make(stringMap)
 	var dirs []*tar.Header
@@ -306,10 +306,10 @@ func unpackTar(r io.Reader, dest string) error {
 	return changeDirTimes(dirs, dest)
 }
 
-func openAndUnpack(layerPath, dest string) error {
+func OpenAndUnpack(layerPath, dest string) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
-		return fmt.Errorf("failed to open the layer: %v", err)
+		return ErrFailedOpen
 	}
 	defer tarFile.Close()
 
