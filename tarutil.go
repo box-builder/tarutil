@@ -12,13 +12,6 @@ import (
 	"unsafe"
 )
 
-const (
-	whiteoutPrefix     = ".wh."
-	whiteoutMetaPrefix = whiteoutPrefix + whiteoutPrefix
-	whiteoutLinkDir    = whiteoutMetaPrefix + "plnk"
-	whiteoutOpaqueDir  = whiteoutMetaPrefix + ".opq"
-)
-
 var (
 	maxTime                  time.Time
 	errSyscallNotImplemented = errors.New("syscall not implemented")
