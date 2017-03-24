@@ -3,7 +3,6 @@ package tarutil
 import (
 	"archive/tar"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -309,9 +308,9 @@ func UnpackTar(r io.Reader, dest string) error {
 func OpenAndUnpack(layerPath, dest string) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
-		return ErrFailedOpen
+		return errFailedOpen
 	}
 	defer tarFile.Close()
 
-	return unpackTar(tarFile, dest)
+	return UnpackTar(tarFile, dest)
 }
