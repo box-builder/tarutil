@@ -2,6 +2,7 @@ package tarutil
 
 import (
 	"archive/tar"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -263,11 +264,17 @@ func changeDirTimes(dirs []*tar.Header, dest string) error {
 	return nil
 }
 
-func UnpackTar(r io.Reader, dest string) error {
+func UnpackTar(ctx context.Context, r io.Reader, dest string) error {
 	tr := tar.NewReader(r)
 	unpackedPaths := make(stringMap)
 	var dirs []*tar.Header
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		hdr, err := tr.Next()
 		if err == io.EOF {
 			break
@@ -298,12 +305,12 @@ func UnpackTar(r io.Reader, dest string) error {
 	return changeDirTimes(dirs, dest)
 }
 
-func OpenAndUnpack(layerPath, dest string) error {
+func OpenAndUnpack(ctx context.Context, layerPath, dest string) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
 		return errFailedOpen
 	}
 	defer tarFile.Close()
 
-	return UnpackTar(tarFile, dest)
+	return UnpackTar(ctx, tarFile, dest)
 }
