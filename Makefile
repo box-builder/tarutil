@@ -7,10 +7,10 @@ install_box_ci:
 	@sh install_box_ci.sh
 
 build: 
-	PATH=${PATH}:${PWD}/bin box -t unclejack/tarutil build.rb	
+	PATH=${PATH}:${PWD}/bin box -t box-builder/tarutil build.rb	
 
 run_test:
-	docker run unclejack/tarutil
+	docker run box-builder/tarutil
 
 test: install_box build run_test
 
