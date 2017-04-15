@@ -9,7 +9,10 @@ install_box_ci:
 build: 
 	PATH=${PATH}:${PWD}/bin box -t box-builder/tarutil build.rb	
 
-run_test:
+checks:
+	@bash checks.sh
+
+run_test: checks
 	docker run box-builder/tarutil
 
 test: install_box build run_test
