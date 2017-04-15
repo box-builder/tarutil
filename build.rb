@@ -6,5 +6,8 @@ REPO = "github.com/unclejack/tarutil"
 path = "#{TARGET}/#{REPO}"
 
 copy ".", path
+workdir path
+run "go get -t -d ./..."
 
-set_exec cmd: ["/bin/sh", "-c", "cd #{path} && go test -v ./..."]
+# this entrypoint clear works around a box 0.5.1 bug.
+set_exec entrypoint: [], cmd: ["/bin/sh", "-c", "go test -cover -v ./..."]
