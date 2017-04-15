@@ -316,3 +316,15 @@ func OpenAndUnpack(ctx context.Context, layerPath, dest string) error {
 
 	return UnpackTar(ctx, tarFile, dest)
 }
+
+// OpenAndUnpackMulti unpacks multiple files into the destination.
+func OpenAndUnpackMulti(ctx context.Context, layers []string, dest string) error {
+	for i := range layers {
+		err := OpenAndUnpack(ctx, layers[i], dest)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
