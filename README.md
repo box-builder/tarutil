@@ -1,5 +1,6 @@
 # tarutil
 
+[![GoDoc](https://godoc.org/github.com/box-builder/tarutil?status.svg)](https://godoc.org/github.com/box-builder/tarutil)
 [![Build Status](http://jenkins.hollensbe.org:8080/buildStatus/icon?job=tarutil-master)](http://jenkins.hollensbe.org:8080/job/tarutil-master/)
 
 This library is a collection of Go utilities to handle tar archives.
