@@ -8,12 +8,15 @@ import (
 	"strings"
 )
 
+// TarFilter implements a tar filtering interface for *tar.Reader processing.
 type TarFilter interface {
 	SetTarWriter(tw *tar.Writer) error
 	HandleEntry(*tar.Header) (bool, bool, error)
 	Close() error
 }
 
+// FilterTarUsingFilter accepts a tar file in the io.Reader and a Tarfilter,
+// and then runs the filter repeatedly on the reader.
 func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 	var (
 		pr, pw      = io.Pipe()
@@ -69,11 +72,13 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 	return pr, nil
 }
 
+// OverlayWhiteouts is a TarFilter to handle overlay whiteout files.
 type OverlayWhiteouts struct {
 	dirs map[string]*tar.Header
 	tw   *tar.Writer
 }
 
+// NewOverlayWhiteouts creates a new overlay whiteout filter.
 func NewOverlayWhiteouts() *OverlayWhiteouts {
 	return &OverlayWhiteouts{
 		dirs: make(map[string]*tar.Header),
@@ -81,6 +86,7 @@ func NewOverlayWhiteouts() *OverlayWhiteouts {
 
 }
 
+// SetTarWriter sets the tar writer for output processing.
 func (o *OverlayWhiteouts) SetTarWriter(tw *tar.Writer) error {
 	if o.tw == nil {
 		o.tw = tw
@@ -89,6 +95,7 @@ func (o *OverlayWhiteouts) SetTarWriter(tw *tar.Writer) error {
 	return fmt.Errorf("the TarWriter is already set")
 }
 
+// Close closes the tar filter, finalizing any processing.
 func (o *OverlayWhiteouts) Close() error {
 	if o.tw == nil {
 		return fmt.Errorf("the tarWriter isn't set")
@@ -102,6 +109,7 @@ func (o *OverlayWhiteouts) Close() error {
 	return nil
 }
 
+// HandleEntry is the meat and potatoes of the filter; managing the overlay files.
 func (o *OverlayWhiteouts) HandleEntry(h *tar.Header) (bool, bool, error) {
 	if o.tw == nil {
 		return false, false, fmt.Errorf("the tarWriter isn't set")

@@ -39,7 +39,7 @@ func init() {
 	}
 }
 
-func LUtimesNano(path string, ts []syscall.Timespec) error {
+func luTimesNano(path string, ts []syscall.Timespec) error {
 	var (
 		_path *byte
 		err   error
@@ -61,7 +61,7 @@ func LUtimesNano(path string, ts []syscall.Timespec) error {
 	return nil
 }
 
-func Chtimes(name string, atime time.Time, mtime time.Time) error {
+func chtimes(name string, atime time.Time, mtime time.Time) error {
 	unixMinTime := time.Unix(0, 0)
 	unixMaxTime := maxTime
 
@@ -215,13 +215,13 @@ func setMtimeAndAtime(destPath string, header *tar.Header) error {
 	if header.Typeflag == tar.TypeLink {
 		fi, err := os.Lstat(header.Linkname)
 		if err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			return Chtimes(destPath, aTime, header.ModTime)
+			return chtimes(destPath, aTime, header.ModTime)
 		}
 	} else if header.Typeflag != tar.TypeSymlink {
-		return Chtimes(destPath, aTime, header.ModTime)
+		return chtimes(destPath, aTime, header.ModTime)
 	} else {
 		ts := []syscall.Timespec{timeToTimespec(aTime), timeToTimespec(header.ModTime)}
-		return LUtimesNano(destPath, ts)
+		return luTimesNano(destPath, ts)
 	}
 	return nil
 }
@@ -257,13 +257,14 @@ func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader) err
 func changeDirTimes(dirs []*tar.Header, dest string) error {
 	for _, hdr := range dirs {
 		path := filepath.Join(dest, hdr.Name)
-		if err := Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		if err := chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+// UnpackTar unpacks a tar file into the destination.
 func UnpackTar(ctx context.Context, r io.Reader, dest string) error {
 	tr := tar.NewReader(r)
 	unpackedPaths := make(stringMap)
@@ -305,6 +306,7 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string) error {
 	return changeDirTimes(dirs, dest)
 }
 
+// OpenAndUnpack unpacks a specified file into the destination.
 func OpenAndUnpack(ctx context.Context, layerPath, dest string) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
