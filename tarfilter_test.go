@@ -30,9 +30,9 @@ func (n *NullFilter) HandleEntry(h *tar.Header) (bool, bool, error) {
 func generateTar(numEntries int) io.Reader {
 	var (
 		pr, pw = io.Pipe()
-		tw     = tar.NewWriter(pw)
 	)
 	go func() {
+		tw := tar.NewWriter(pw)
 		for i := 0; i < numEntries; i++ {
 			name := fmt.Sprintf("foo%v", i)
 			h := tar.Header{
