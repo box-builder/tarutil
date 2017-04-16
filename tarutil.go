@@ -3,7 +3,6 @@ package tarutil
 import (
 	"archive/tar"
 	"context"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	"github.com/pkg/errors"
 )
 
 var (
@@ -273,8 +274,20 @@ func changeDirTimes(dirs []*tar.Header, dest string) error {
 
 // UnpackTar unpacks a tar file into the destination.
 func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) error {
+	fi, err := os.Lstat(dest)
+	if os.IsNotExist(err) {
+		if err := os.MkdirAll(dest, 0700); err != nil {
+			return err
+		}
+	} else if os.IsExist(err) && !fi.IsDir() {
+		return errors.Wrap(errRead, "destination is not a directory")
+	} else if err != nil {
+		return err
+	}
+
 	tr := tar.NewReader(r)
 	unpackedPaths := make(stringMap)
+
 	var dirs []*tar.Header
 	for {
 		select {
@@ -300,8 +313,10 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) 
 			continue
 		}
 
-		if err := handleTarEntry(fullPath, dest, hdr, tr, options); err != nil {
-			return err
+		if hdr.Name != "/" {
+			if err := handleTarEntry(fullPath, dest, hdr, tr, options); err != nil {
+				return err
+			}
 		}
 
 		if hdr.Typeflag == tar.TypeDir {
