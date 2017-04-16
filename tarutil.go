@@ -101,7 +101,7 @@ func timeToTimespec(time time.Time) syscall.Timespec {
 func directoryExists(dirPath string) (bool, error) {
 	fi, err := os.Lstat(dirPath)
 	if err == nil && !fi.IsDir() {
-		return false, errPathIsNonDirectory
+		return false, errors.Wrap(errPathIsNonDirectory, dirPath)
 	}
 	if err != nil {
 		return false, nil
@@ -112,10 +112,10 @@ func directoryExists(dirPath string) (bool, error) {
 
 func createDirectory(destPath string, fi os.FileInfo) error {
 	if _, err := directoryExists(destPath); err != nil {
-		return errDirectoryExists
+		return errors.Wrap(errDirectoryExists, destPath)
 	}
 	if err := os.Mkdir(destPath, fi.Mode()); err != nil {
-		return errDirectoryCreateFailed
+		return errors.Wrap(errDirectoryCreateFailed, destPath)
 	}
 
 	return nil
@@ -124,11 +124,11 @@ func createDirectory(destPath string, fi os.FileInfo) error {
 func createFile(destPath string, fi os.FileInfo, r io.Reader) error {
 	file, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY, fi.Mode())
 	if err != nil {
-		return errFailedOpen
+		return errors.Wrap(errFailedOpen, destPath)
 	}
 	defer file.Close()
 	if _, err := io.Copy(file, r); err != nil {
-		return errFailedWrite
+		return errors.Wrap(errFailedWrite, destPath)
 	}
 
 	return nil
@@ -138,7 +138,7 @@ func createSymlink(dest, destPath string, header *tar.Header) error {
 	targetPath := filepath.Join(filepath.Dir(destPath), header.Linkname)
 
 	if !strings.HasPrefix(targetPath, dest) {
-		return errInvalidSymlink
+		return errors.Wrap(errInvalidSymlink, header.Linkname)
 	}
 	return os.Symlink(header.Linkname, destPath)
 }
@@ -248,7 +248,7 @@ func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader, opt
 	case tar.TypeSymlink:
 		err = createSymlink(dest, fullPath, header)
 	default:
-		err = errUnknownHeader
+		err = errors.Wrap(errUnknownHeader, fullPath)
 	}
 	if err != nil {
 		return err
@@ -277,12 +277,12 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) 
 	fi, err := os.Lstat(dest)
 	if os.IsNotExist(err) {
 		if err := os.MkdirAll(dest, 0700); err != nil {
-			return err
+			return errors.Wrap(err, dest)
 		}
 	} else if os.IsExist(err) && !fi.IsDir() {
 		return errors.Wrap(errRead, "destination is not a directory")
 	} else if err != nil {
-		return err
+		return errors.Wrap(err, dest)
 	}
 
 	tr := tar.NewReader(r)
@@ -332,7 +332,7 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) 
 func OpenAndUnpack(ctx context.Context, layerPath, dest string, options *Options) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
-		return errFailedOpen
+		return errors.Wrap(errFailedOpen, layerPath)
 	}
 	defer tarFile.Close()
 
