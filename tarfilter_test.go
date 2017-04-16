@@ -43,6 +43,13 @@ func generateTar(numEntries int) io.Reader {
 				Typeflag: tar.TypeReg,
 			}
 			tw.WriteHeader(&h)
+
+			h = tar.Header{
+				Name:     fmt.Sprintf("%s.lnk", name),
+				Linkname: name,
+				Typeflag: tar.TypeLink,
+			}
+			tw.WriteHeader(&h)
 		}
 		tw.Close()
 	}()

@@ -23,6 +23,7 @@ var (
 	errDirectoryExists       = errors.New("expected directory to not exist")
 	errDirectoryCreateFailed = errors.New("failed to create directory")
 	errInvalidSymlink        = errors.New("invalid symlink")
+	errInvalidLink           = errors.New("invalid hard link")
 	errRead                  = errors.New("encountered error while reading")
 	errUnknownHeader         = errors.New("encountered unknown header")
 )
@@ -234,7 +235,7 @@ func setMtimeAndAtime(destPath string, header *tar.Header) error {
 	return nil
 }
 
-func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader, options *Options) error {
+func handleTarEntry(targetPaths map[string]string, fullPath, dest string, header *tar.Header, tr io.Reader, options *Options) error {
 	var err error
 	fi := header.FileInfo()
 
@@ -242,13 +243,25 @@ func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader, opt
 	case tar.TypeDir:
 		err = createDirectory(fullPath, fi)
 	case tar.TypeReg, tar.TypeRegA:
+		if _, ok := targetPaths[header.Name]; ok {
+			return errors.Wrapf(errInvalidLink, "%q: file already exists", header.Name)
+		}
 		err = createFile(fullPath, fi, tr)
+		targetPaths[header.Name] = fullPath
+	case tar.TypeLink:
+		if targ, ok := targetPaths[header.Linkname]; header.Linkname != "" && ok {
+			if err := os.Link(targ, fullPath); err != nil {
+				err = errors.Wrapf(errInvalidLink, "%s: %v", header.Name, err.Error)
+			}
+		} else {
+			err = errors.Wrapf(errInvalidLink, "%s: invalid link name", header.Name)
+		}
 	case tar.TypeBlock, tar.TypeChar, tar.TypeFifo:
 		err = createBlockCharFifo(fullPath, header)
 	case tar.TypeSymlink:
 		err = createSymlink(dest, fullPath, header)
 	default:
-		err = errors.Wrap(errUnknownHeader, fullPath)
+		err = errors.Wrapf(errUnknownHeader, "(type: %c, path: %q)", header.Typeflag, fullPath)
 	}
 	if err != nil {
 		return err
@@ -272,8 +285,7 @@ func changeDirTimes(dirs []*tar.Header, dest string) error {
 	return nil
 }
 
-// UnpackTar unpacks a tar file into the destination.
-func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) error {
+func createDest(dest string) error {
 	fi, err := os.Lstat(dest)
 	if os.IsNotExist(err) {
 		if err := os.MkdirAll(dest, 0700); err != nil {
@@ -285,8 +297,18 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) 
 		return errors.Wrap(err, dest)
 	}
 
+	return nil
+}
+
+// UnpackTar unpacks a tar file into the destination.
+func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) error {
+	if err := createDest(dest); err != nil {
+		return err
+	}
+
 	tr := tar.NewReader(r)
 	unpackedPaths := make(stringMap)
+	targetPaths := map[string]string{}
 
 	var dirs []*tar.Header
 	for {
@@ -313,8 +335,8 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) 
 			continue
 		}
 
-		if hdr.Name != "/" {
-			if err := handleTarEntry(fullPath, dest, hdr, tr, options); err != nil {
+		if hdr.Name != "/" && hdr.Name != "." {
+			if err := handleTarEntry(targetPaths, fullPath, dest, hdr, tr, options); err != nil {
 				return err
 			}
 		}
