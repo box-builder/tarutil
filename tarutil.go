@@ -28,6 +28,11 @@ var (
 
 type stringMap map[string]struct{}
 
+// Options controls the behavior of some tarball related operations.
+type Options struct {
+	NoLchown bool
+}
+
 func init() {
 	if unsafe.Sizeof(syscall.Timespec{}.Nsec) == 8 {
 		// This is a 64 bit timespec
@@ -187,9 +192,11 @@ func handleWhiteouts(destPath string, unpackedPaths stringMap) error {
 	return os.RemoveAll(originalPath)
 }
 
-func setPermissions(destPath string, header *tar.Header) error {
-	if err := os.Lchown(destPath, header.Uid, header.Gid); err != nil {
-		return err
+func setPermissions(destPath string, header *tar.Header, options *Options) error {
+	if options == nil || !options.NoLchown {
+		if err := os.Lchown(destPath, header.Uid, header.Gid); err != nil {
+			return err
+		}
 	}
 
 	headerFi := header.FileInfo()
@@ -226,7 +233,7 @@ func setMtimeAndAtime(destPath string, header *tar.Header) error {
 	return nil
 }
 
-func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader) error {
+func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader, options *Options) error {
 	var err error
 	fi := header.FileInfo()
 
@@ -246,7 +253,7 @@ func handleTarEntry(fullPath, dest string, header *tar.Header, tr io.Reader) err
 		return err
 	}
 
-	err = setPermissions(fullPath, header)
+	err = setPermissions(fullPath, header, options)
 	if err != nil {
 		return err
 	}
@@ -265,7 +272,7 @@ func changeDirTimes(dirs []*tar.Header, dest string) error {
 }
 
 // UnpackTar unpacks a tar file into the destination.
-func UnpackTar(ctx context.Context, r io.Reader, dest string) error {
+func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) error {
 	tr := tar.NewReader(r)
 	unpackedPaths := make(stringMap)
 	var dirs []*tar.Header
@@ -293,7 +300,7 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string) error {
 			continue
 		}
 
-		if err := handleTarEntry(fullPath, dest, hdr, tr); err != nil {
+		if err := handleTarEntry(fullPath, dest, hdr, tr, options); err != nil {
 			return err
 		}
 
@@ -307,20 +314,20 @@ func UnpackTar(ctx context.Context, r io.Reader, dest string) error {
 }
 
 // OpenAndUnpack unpacks a specified file into the destination.
-func OpenAndUnpack(ctx context.Context, layerPath, dest string) error {
+func OpenAndUnpack(ctx context.Context, layerPath, dest string, options *Options) error {
 	tarFile, err := os.Open(layerPath)
 	if err != nil {
 		return errFailedOpen
 	}
 	defer tarFile.Close()
 
-	return UnpackTar(ctx, tarFile, dest)
+	return UnpackTar(ctx, tarFile, dest, options)
 }
 
 // OpenAndUnpackMulti unpacks multiple files into the destination.
-func OpenAndUnpackMulti(ctx context.Context, layers []string, dest string) error {
+func OpenAndUnpackMulti(ctx context.Context, layers []string, dest string, options *Options) error {
 	for i := range layers {
-		err := OpenAndUnpack(ctx, layers[i], dest)
+		err := OpenAndUnpack(ctx, layers[i], dest, options)
 		if err != nil {
 			return err
 		}

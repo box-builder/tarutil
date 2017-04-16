@@ -26,7 +26,7 @@ func TestUntarTeeReader(t *testing.T) {
 
 	tee := io.TeeReader(r, dgr.Hash())
 
-	if err := UnpackTar(context.Background(), tee, dir); err != nil {
+	if err := UnpackTar(context.Background(), tee, dir, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -44,7 +44,7 @@ func TestUntarReader(t *testing.T) {
 
 	r := generateTar(25)
 
-	if err := UnpackTar(context.Background(), r, dir); err != nil {
+	if err := UnpackTar(context.Background(), r, dir, nil); err != nil {
 		t.Fatal(err)
 	}
 }
