@@ -20,9 +20,9 @@ const emptyDigest = digest.Digest("sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41
 func TestUntarBadLink(t *testing.T) {
 	var (
 		pr, pw = io.Pipe()
-		tw     = tar.NewWriter(pw)
 	)
 	go func() {
+		tw := tar.NewWriter(pw)
 		for i := 0; i < 20; i++ {
 			name := fmt.Sprintf("%d", i)
 
@@ -47,8 +47,8 @@ func TestUntarBadLink(t *testing.T) {
 	}
 
 	pr, pw = io.Pipe()
-	tw = tar.NewWriter(pw)
 	go func() {
+		tw := tar.NewWriter(pw)
 		for i := 0; i < 20; i++ {
 			name := fmt.Sprintf("%d", i)
 
@@ -64,7 +64,7 @@ func TestUntarBadLink(t *testing.T) {
 
 	err = UnpackTar(context.Background(), pr, dir, nil)
 	if errors.Cause(err) != errInvalidLink {
-		t.Fatal("processed invalid hard links")
+		t.Fatalf("processed invalid hard links: actual error: %v", err)
 	}
 }
 
