@@ -1,7 +1,7 @@
 from "golang"
 
 TARGET = "/go/src"
-REPO = "github.com/unclejack/tarutil"
+REPO = "github.com/box-builder/tarutil"
 
 path = "#{TARGET}/#{REPO}"
 
