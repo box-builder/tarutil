@@ -5,24 +5,66 @@ import (
 	"context"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 )
 
+func prepHeader(p, linkName, rel string, hardLink bool, fi os.FileInfo) (*tar.Header, error) {
+	header, err := tar.FileInfoHeader(fi, linkName)
+	if err != nil {
+		return nil, err
+	}
+
+	header.Linkname = linkName
+	header.Name = rel
+
+	// fixups to special files
+	if hardLink {
+		header.Typeflag = tar.TypeLink
+		header.Size = 0
+	} else if linkName != "" {
+		header.Typeflag = tar.TypeSymlink
+	} else if fi.IsDir() && len(header.Name) > 0 && header.Name[len(header.Name)-1] != '/' {
+		header.Name += "/"
+	}
+
+	// ripped directly from docker
+	capability, _ := Lgetxattr(p, "security.capability")
+	if capability != nil {
+		header.Xattrs = make(map[string]string)
+		header.Xattrs["security.capability"] = string(capability)
+	}
+
+	header.ChangeTime = time.Unix(fi.Sys().(*syscall.Stat_t).Ctim.Unix())
+	header.AccessTime = time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
+	header.ModTime = time.Unix(fi.Sys().(*syscall.Stat_t).Mtim.Unix())
+
+	return header, nil
+}
+
 func getLink(source, p string, fi os.FileInfo, inodeTable map[uint64]string) (string, bool, error) {
 	if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
-		follow, err := filepath.EvalSymlinks(p)
+		follow, err := os.Readlink(p)
 		if err != nil {
 			return "", false, errors.Wrap(errInvalidSymlink, err.Error())
 		}
 
-		rel, err := filepath.Rel(source, follow)
+		var rel string
+
+		// coerce the path to be a relative symlink.
+		if path.IsAbs(follow) {
+			rel, err = filepath.Rel(path.Dir(p), follow)
+		} else {
+			rel, err = filepath.Rel(path.Dir(p), path.Join(path.Dir(p), follow))
+		}
+
 		if err != nil {
 			return "", false, errors.Wrap(errInvalidSymlink, err.Error())
 		}
-
 		return rel, false, nil
 	}
 
@@ -30,6 +72,7 @@ func getLink(source, p string, fi os.FileInfo, inodeTable map[uint64]string) (st
 	nlink := fi.Sys().(*syscall.Stat_t).Nlink
 
 	if nlink > 1 {
+		// FIXME need to track across devices
 		if _, ok := inodeTable[inode]; ok {
 			return inodeTable[inode], true, nil
 		}
@@ -73,26 +116,16 @@ func Pack(ctx context.Context, source string, w io.Writer) error {
 			return err
 		}
 
-		header, err := tar.FileInfoHeader(fi, linkName)
+		header, err := prepHeader(p, linkName, rel, hardLink, fi)
 		if err != nil {
 			return err
-		}
-
-		header.Linkname = linkName
-		header.Name = rel
-
-		if hardLink {
-			header.Typeflag = tar.TypeLink
-			header.Size = 0
-		} else if linkName != "" {
-			header.Typeflag = tar.TypeSymlink
 		}
 
 		if err := tw.WriteHeader(header); err != nil {
 			return err
 		}
 
-		if !fi.IsDir() && header.Linkname == "" {
+		if !fi.IsDir() && (header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA) {
 			abs, err := filepath.Abs(p)
 			if err != nil {
 				return err
