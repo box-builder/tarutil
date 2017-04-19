@@ -26,33 +26,56 @@ func (n *NullFilter) HandleEntry(h *tar.Header) (bool, bool, error) {
 	return true, true, nil
 }
 
-func TestTarFilterWithNullFilter(t *testing.T) {
+func TestConsumeTar(t *testing.T) {
 	r := generateTar(25)
-	nf := &NullFilter{}
-	fr, err := FilterTarUsingFilter(r, nf)
-	tr := tar.NewReader(fr)
+	items, err := loopTar(r, true)
 	if err != nil {
 		t.Fatalf("encountered error: %v", err)
 	}
 
-	err = loopTar(tr, false)
+	if items != 25*2 {
+		t.Fatalf("processed only %v items, not 25", items)
+	}
+}
+
+func TestTarFilterWithNullFilter(t *testing.T) {
+	numItems := 25
+	r := generateTar(numItems)
+	// we also need to read the links from the generated tarball
+	numItems = numItems * 2
+	nf := &NullFilter{}
+	fr, err := FilterTarUsingFilter(r, nf)
+	if err != nil {
+		t.Fatalf("failed to instantiate filter")
+	}
+
+	items, err := loopTar(fr, true)
 	if err != nil {
 		t.Fatalf("encountered error: %v", err)
+	}
+
+	if items != numItems {
+		t.Fatalf("processed only %v items, not %v", items, numItems)
 	}
 }
 
 func TestOverlayWhiteoutsWithDummyFiles(t *testing.T) {
-	r := generateTar(25)
+	numItems := 25
+	r := generateTar(numItems)
+	// we also need to read the links from the generated tarball
+	numItems = numItems * 2
 	nf := NewOverlayWhiteouts()
 	fr, err := FilterTarUsingFilter(r, nf)
-	tr := tar.NewReader(fr)
+	if err != nil {
+		t.Fatalf("failed to instantiate filter")
+	}
+
+	items, err := loopTar(fr, false)
 	if err != nil {
 		t.Fatalf("encountered error: %v", err)
 	}
 
-	err = loopTar(tr, false)
-	if err != nil {
-		t.Fatalf("encountered error: %v", err)
+	if items != numItems {
+		t.Fatalf("processed only %v items, not %v", items, numItems)
 	}
-
 }
