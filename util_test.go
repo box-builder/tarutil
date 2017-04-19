@@ -36,8 +36,9 @@ func generateTar(numEntries int) io.Reader {
 	return pr
 }
 
-func loopTar(r io.Reader, print bool) error {
+func loopTar(r io.Reader, print bool) (int, error) {
 	tr := tar.NewReader(r)
+	items := 0
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -45,11 +46,13 @@ func loopTar(r io.Reader, print bool) error {
 		}
 
 		if err != nil {
-			return err
+			return items, err
 		}
+
 		if print {
 			fmt.Printf("hdr: %#v\n", hdr)
 		}
+		items++
 	}
-	return nil
+	return items, nil
 }

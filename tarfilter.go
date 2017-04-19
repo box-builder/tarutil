@@ -27,6 +27,7 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 	)
 
 	if err := f.SetTarWriter(tw); err != nil {
+		pw.CloseWithError(err)
 		return nil, err
 	}
 	go func() {
@@ -34,7 +35,7 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 			hdr, err := tr.Next()
 			if err == io.EOF {
 				f.Close()
-				tw.Close()
+				pw.CloseWithError(err)
 				break
 			}
 
@@ -45,7 +46,7 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 
 			writeData, writeHeader, err = f.HandleEntry(hdr)
 			if err != nil {
-				pw.Close()
+				pw.CloseWithError(err)
 				break
 			}
 
@@ -54,7 +55,7 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 			}
 			err = tw.WriteHeader(hdr)
 			if err != nil {
-				pw.Close()
+				pw.CloseWithError(err)
 				break
 			}
 
@@ -64,7 +65,7 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 
 			_, err = io.Copy(tw, tr)
 			if err != nil {
-				pw.Close()
+				pw.CloseWithError(err)
 				break
 			}
 		}
@@ -119,13 +120,22 @@ func (o *OverlayWhiteouts) HandleEntry(h *tar.Header) (bool, bool, error) {
 	dir := filepath.Dir(name)
 
 	if h.Typeflag == tar.TypeDir {
-		o.dirs[base] = h
+		o.dirs[name] = h
+		if dirHeader, ok := o.dirs[dir]; ok {
+			delete(o.dirs, dir)
+			if err := o.tw.WriteHeader(dirHeader); err != nil {
+				return false, false, err
+			}
+		}
 		return false, false, nil
 	}
 
 	if dirHeader, ok := o.dirs[dir]; ok {
 		delete(o.dirs, dir)
 		if base == whiteoutOpaqueDir {
+			if h.Xattrs == nil {
+				h.Xattrs = make(map[string]string)
+			}
 			h.Xattrs["trusted.overlay.opaque"] = "y"
 			return false, true, nil
 		}
