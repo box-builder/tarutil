@@ -97,7 +97,7 @@ func TestPack(t *testing.T) {
 
 	defer os.RemoveAll(unpackDir)
 
-	if err := UnpackTar(context.Background(), r, unpackDir, nil); err != nil {
+	if err := Unpack(context.Background(), r, unpackDir, nil); err != nil {
 		t.Fatal(err)
 	}
 

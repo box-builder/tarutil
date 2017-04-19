@@ -39,7 +39,7 @@ func TestUntarBadLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = UnpackTar(context.Background(), pr, dir, nil)
+	err = Unpack(context.Background(), pr, dir, nil)
 	if errors.Cause(err) != errInvalidLink {
 		t.Fatal("processed invalid hard links")
 	}
@@ -60,7 +60,7 @@ func TestUntarBadLink(t *testing.T) {
 		tw.Close()
 	}()
 
-	err = UnpackTar(context.Background(), pr, dir, nil)
+	err = Unpack(context.Background(), pr, dir, nil)
 	if errors.Cause(err) != errInvalidLink {
 		t.Fatalf("processed invalid hard links: actual error: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestUntarNonExistingDir(t *testing.T) {
 
 	r := generateTar(25)
 
-	if err := UnpackTar(context.Background(), r, dir, nil); err != nil {
+	if err := Unpack(context.Background(), r, dir, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -89,7 +89,7 @@ func TestUntarExistingDir(t *testing.T) {
 
 	r := generateTar(25)
 
-	if err := UnpackTar(context.Background(), r, dir, nil); err != nil {
+	if err := Unpack(context.Background(), r, dir, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -103,7 +103,7 @@ func TestUntarOverFile(t *testing.T) {
 
 	r := generateTar(25)
 
-	if err := UnpackTar(context.Background(), r, f.Name(), nil); err == nil {
+	if err := Unpack(context.Background(), r, f.Name(), nil); err == nil {
 		t.Fatal("did not error unpacking over file")
 	}
 }
@@ -120,7 +120,7 @@ func TestUntarTeeReader(t *testing.T) {
 
 	tee := io.TeeReader(r, dgr.Hash())
 
-	if err := UnpackTar(context.Background(), tee, dir, nil); err != nil {
+	if err := Unpack(context.Background(), tee, dir, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -138,7 +138,7 @@ func TestUntarReader(t *testing.T) {
 
 	r := generateTar(25)
 
-	if err := UnpackTar(context.Background(), r, dir, nil); err != nil {
+	if err := Unpack(context.Background(), r, dir, nil); err != nil {
 		t.Fatal(err)
 	}
 }
