@@ -268,8 +268,8 @@ func createDest(dest string) error {
 	return nil
 }
 
-// UnpackTar unpacks a tar file into the destination.
-func UnpackTar(ctx context.Context, r io.Reader, dest string, options *Options) error {
+// Unpack unpacks a tar file into the destination.
+func Unpack(ctx context.Context, r io.Reader, dest string, options *Options) error {
 	if err := createDest(dest); err != nil {
 		return err
 	}
@@ -326,7 +326,7 @@ func OpenAndUnpack(ctx context.Context, layerPath, dest string, options *Options
 	}
 	defer tarFile.Close()
 
-	return UnpackTar(ctx, tarFile, dest, options)
+	return Unpack(ctx, tarFile, dest, options)
 }
 
 // OpenAndUnpackMulti unpacks multiple files into the destination.
