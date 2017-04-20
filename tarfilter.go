@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -101,11 +102,17 @@ func (o *OverlayWhiteouts) Close() error {
 	if o.tw == nil {
 		return fmt.Errorf("the tarWriter isn't set")
 	}
-	for k, h := range o.dirs {
+	entries := make([]string, 0, len(o.dirs))
+	for k := range o.dirs {
+		entries = append(entries, k)
+	}
+	sort.Strings(entries)
+	for _, v := range entries {
+		h := o.dirs[v]
 		if err := o.tw.WriteHeader(h); err != nil {
 			return err
 		}
-		delete(o.dirs, k)
+		delete(o.dirs, v)
 	}
 	return nil
 }
