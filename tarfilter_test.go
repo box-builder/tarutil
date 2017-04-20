@@ -28,7 +28,7 @@ func (n *NullFilter) HandleEntry(h *tar.Header) (bool, bool, error) {
 
 func TestConsumeTar(t *testing.T) {
 	r := generateTar(25)
-	items, err := loopTar(r, true)
+	items, err := loopTar(r, false)
 	if err != nil {
 		t.Fatalf("encountered error: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestTarFilterWithNullFilter(t *testing.T) {
 		t.Fatalf("failed to instantiate filter")
 	}
 
-	items, err := loopTar(fr, true)
+	items, err := loopTar(fr, false)
 	if err != nil {
 		t.Fatalf("encountered error: %v", err)
 	}
