@@ -128,11 +128,11 @@ func TestOverlayWhiteouts(t *testing.T) {
 		name      string
 		entryType byte
 	}{
+		{"emptydir", tar.TypeDir},
 		{"foo", tar.TypeReg},
 		{"bar", tar.TypeDir},
 		{"boo", tar.TypeDir},
 		{"boo/baz", tar.TypeChar},
-		{"emptydir", tar.TypeDir},
 	}
 
 	if len(headers) != len(items) {
