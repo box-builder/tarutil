@@ -140,11 +140,12 @@ func (o *OverlayWhiteouts) HandleEntry(h *tar.Header) (bool, bool, error) {
 	if dirHeader, ok := o.dirs[dir]; ok {
 		delete(o.dirs, dir)
 		if base == whiteoutOpaqueDir {
-			if h.Xattrs == nil {
-				h.Xattrs = make(map[string]string)
+			if dirHeader.Xattrs == nil {
+				dirHeader.Xattrs = make(map[string]string)
 			}
-			h.Xattrs["trusted.overlay.opaque"] = "y"
-			return false, true, nil
+			dirHeader.Xattrs["trusted.overlay.opaque"] = "y"
+			err := o.tw.WriteHeader(dirHeader)
+			return false, false, err
 		}
 		if err := o.tw.WriteHeader(dirHeader); err != nil {
 			return false, false, err

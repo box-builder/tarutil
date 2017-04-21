@@ -3,6 +3,7 @@ package tarutil
 import (
 	"archive/tar"
 	"fmt"
+	"io"
 	"testing"
 )
 
@@ -77,5 +78,82 @@ func TestOverlayWhiteoutsWithDummyFiles(t *testing.T) {
 
 	if items != numItems {
 		t.Fatalf("processed only %v items, not %v", items, numItems)
+	}
+}
+
+func TestOverlayWhiteouts(t *testing.T) {
+	var (
+		pr, pw = io.Pipe()
+	)
+	go func() {
+		var items = []struct {
+			name      string
+			entryType byte
+		}{
+			{"emptydir", tar.TypeDir},
+			{"foo", tar.TypeReg},
+			{"bar", tar.TypeDir},
+			{fmt.Sprintf("bar/%v", whiteoutOpaqueDir), tar.TypeReg},
+			{"boo", tar.TypeDir},
+			{fmt.Sprintf("boo/%vbaz", whiteoutPrefix), tar.TypeReg},
+		}
+		tw := tar.NewWriter(pw)
+
+		for _, item := range items {
+			h := tar.Header{
+				Name:     item.name,
+				Size:     0,
+				Uid:      0,
+				Gid:      0,
+				Typeflag: item.entryType,
+			}
+			tw.WriteHeader(&h)
+		}
+
+		tw.Close()
+	}()
+
+	filter := NewOverlayWhiteouts()
+	filteredTar, err := FilterTarUsingFilter(pr, filter)
+	if err != nil {
+		t.Fatalf("failed to add filter %v", err)
+	}
+
+	headers, err := loopTarAndReturnHeaders(filteredTar)
+	if err != nil {
+		t.Fatalf("failed to iterate through the items: %v", err)
+	}
+
+	var items = []struct {
+		name      string
+		entryType byte
+	}{
+		{"foo", tar.TypeReg},
+		{"bar", tar.TypeDir},
+		{"boo", tar.TypeDir},
+		{"boo/baz", tar.TypeChar},
+		{"emptydir", tar.TypeDir},
+	}
+
+	if len(headers) != len(items) {
+		t.Fatalf("expected %v headers, got %v", len(items), len(headers))
+	}
+
+	for i := range items {
+		item := items[i]
+		header := headers[i]
+		if header.Name != item.name {
+			t.Fatalf("expected header.Name: %v, got: %v", item.name, header.Name)
+		}
+		if header.Typeflag != item.entryType {
+			t.Fatalf("expected header.Name: %v, got: %v", item.name, header.Name)
+		}
+		if header.Name != "bar" {
+			continue
+		}
+
+		if header.Xattrs["trusted.overlay.opaque"] != "y" {
+			t.Fatal("expected entry bar to have overlay xattrs")
+		}
 	}
 }
