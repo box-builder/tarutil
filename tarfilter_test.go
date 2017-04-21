@@ -96,6 +96,7 @@ func TestOverlayWhiteouts(t *testing.T) {
 			{fmt.Sprintf("bar/%v", whiteoutOpaqueDir), tar.TypeReg},
 			{"boo", tar.TypeDir},
 			{fmt.Sprintf("boo/%vbaz", whiteoutPrefix), tar.TypeReg},
+			{"lastemptydir", tar.TypeDir},
 		}
 		tw := tar.NewWriter(pw)
 
@@ -133,6 +134,7 @@ func TestOverlayWhiteouts(t *testing.T) {
 		{"bar", tar.TypeDir},
 		{"boo", tar.TypeDir},
 		{"boo/baz", tar.TypeChar},
+		{"lastemptydir", tar.TypeDir},
 	}
 
 	if len(headers) != len(items) {
