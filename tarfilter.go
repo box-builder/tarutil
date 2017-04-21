@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -76,15 +75,13 @@ func FilterTarUsingFilter(r io.Reader, f TarFilter) (io.Reader, error) {
 
 // OverlayWhiteouts is a TarFilter to handle overlay whiteout files.
 type OverlayWhiteouts struct {
-	dirs map[string]*tar.Header
-	tw   *tar.Writer
+	previousEntry *tar.Header
+	tw            *tar.Writer
 }
 
 // NewOverlayWhiteouts creates a new overlay whiteout filter.
 func NewOverlayWhiteouts() *OverlayWhiteouts {
-	return &OverlayWhiteouts{
-		dirs: make(map[string]*tar.Header),
-	}
+	return &OverlayWhiteouts{}
 
 }
 
@@ -99,21 +96,6 @@ func (o *OverlayWhiteouts) SetTarWriter(tw *tar.Writer) error {
 
 // Close closes the tar filter, finalizing any processing.
 func (o *OverlayWhiteouts) Close() error {
-	if o.tw == nil {
-		return fmt.Errorf("the tarWriter isn't set")
-	}
-	entries := make([]string, 0, len(o.dirs))
-	for k := range o.dirs {
-		entries = append(entries, k)
-	}
-	sort.Strings(entries)
-	for _, v := range entries {
-		h := o.dirs[v]
-		if err := o.tw.WriteHeader(h); err != nil {
-			return err
-		}
-		delete(o.dirs, v)
-	}
 	return nil
 }
 
@@ -126,30 +108,30 @@ func (o *OverlayWhiteouts) HandleEntry(h *tar.Header) (bool, bool, error) {
 	base := filepath.Clean(filepath.Base(name))
 	dir := filepath.Dir(name)
 
-	if h.Typeflag == tar.TypeDir {
-		o.dirs[name] = h
-		if dirHeader, ok := o.dirs[dir]; ok {
-			delete(o.dirs, dir)
-			if err := o.tw.WriteHeader(dirHeader); err != nil {
-				return false, false, err
-			}
+	if h.Typeflag == tar.TypeDir && o.previousEntry != nil {
+		if err := o.tw.WriteHeader(o.previousEntry); err != nil {
+			return false, false, err
 		}
+	}
+	if h.Typeflag == tar.TypeDir {
+		o.previousEntry = h
 		return false, false, nil
 	}
 
-	if dirHeader, ok := o.dirs[dir]; ok {
-		delete(o.dirs, dir)
+	if o.previousEntry != nil {
 		if base == whiteoutOpaqueDir {
-			if h.Xattrs == nil {
-				h.Xattrs = make(map[string]string)
+			if o.previousEntry.Xattrs == nil {
+				o.previousEntry.Xattrs = make(map[string]string)
 			}
-			h.Xattrs["trusted.overlay.opaque"] = "y"
-			return false, true, nil
-		}
-		if err := o.tw.WriteHeader(dirHeader); err != nil {
+			o.previousEntry.Xattrs["trusted.overlay.opaque"] = "y"
+			err := o.tw.WriteHeader(o.previousEntry)
+			o.previousEntry = nil
 			return false, false, err
 		}
-
+		if err := o.tw.WriteHeader(o.previousEntry); err != nil {
+			return false, false, err
+		}
+		o.previousEntry = nil
 	}
 
 	if strings.HasPrefix(base, whiteoutPrefix) {

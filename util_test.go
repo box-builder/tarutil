@@ -56,3 +56,22 @@ func loopTar(r io.Reader, print bool) (int, error) {
 	}
 	return items, nil
 }
+
+func loopTarAndReturnHeaders(r io.Reader) ([]*tar.Header, error) {
+	var (
+		tr      = tar.NewReader(r)
+		headers []*tar.Header
+	)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+		headers = append(headers, hdr)
+	}
+	return headers, nil
+}
