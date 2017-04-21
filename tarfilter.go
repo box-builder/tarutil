@@ -96,7 +96,10 @@ func (o *OverlayWhiteouts) SetTarWriter(tw *tar.Writer) error {
 
 // Close closes the tar filter, finalizing any processing.
 func (o *OverlayWhiteouts) Close() error {
-	return nil
+	if o.previousEntry == nil {
+		return nil
+	}
+	return o.tw.WriteHeader(o.previousEntry)
 }
 
 // HandleEntry is the meat and potatoes of the filter; managing the overlay files.
