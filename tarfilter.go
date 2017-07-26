@@ -99,7 +99,11 @@ func (o *OverlayWhiteouts) Close() error {
 	if o.previousEntry == nil {
 		return nil
 	}
-	return o.tw.WriteHeader(o.previousEntry)
+	err := o.tw.WriteHeader(o.previousEntry)
+	if err != nil {
+		return err
+	}
+	return o.tw.Close()
 }
 
 // HandleEntry is the meat and potatoes of the filter; managing the overlay files.
