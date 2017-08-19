@@ -10,7 +10,7 @@ build:
 	PATH=${PATH}:${PWD}/bin box -t box-builder/tarutil build.rb	
 
 checks:
-	@bash checks.sh
+	@docker run --rm box-builder/tarutil bash checks.sh
 
 run_test: checks
 	docker run --rm box-builder/tarutil
