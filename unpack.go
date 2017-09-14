@@ -296,12 +296,6 @@ func Unpack(ctx context.Context, r io.Reader, dest string, options *Options) err
 		}
 
 		fullPath := filepath.Join(dest, hdr.Name)
-		base := filepath.Base(fullPath)
-
-		if strings.HasPrefix(base, whiteoutPrefix) {
-			handleWhiteouts(fullPath, unpackedPaths)
-			continue
-		}
 
 		if hdr.Name != "/" && hdr.Name != "." {
 			if err := handleTarEntry(targetPaths, fullPath, dest, hdr, tr, options); err != nil {
